@@ -295,3 +295,39 @@ func TestInvalidNumber(t *testing.T) {
 			"3.1415.1", tok.Literal)
 	}
 }
+
+func TestString(t *testing.T) {
+	input := `"Hello World!";`
+
+	l := New(input)
+
+	tok := l.NextToken()
+
+	if tok.Type != token.STRING {
+		t.Fatalf("tokentype wrong. expected=%q, got=%q",
+			token.STRING, tok.Type)
+	}
+
+	if tok.Literal != "Hello World!" {
+		t.Fatalf("literal wrong. expected=%q, got=%q",
+			"Hello World!", tok.Literal)
+	}
+}
+
+func TestEscapedtring(t *testing.T) {
+	input := `"Hello World from the \"StaG\" programming language!\nEnjoy your day!\t";`
+
+	l := New(input)
+
+	tok := l.NextToken()
+
+	if tok.Type != token.STRING {
+		t.Fatalf("tokentype wrong. expected=%q, got=%q",
+			token.STRING, tok.Type)
+	}
+
+	if tok.Literal != "Hello World from the \"StaG\" programming language!\nEnjoy your day!\t" {
+		t.Fatalf("literal wrong. expected=%q, got=%q",
+			"Hello World from the \"StaG\" programming language!\nEnjoy your day!\t", tok.Literal)
+	}
+}

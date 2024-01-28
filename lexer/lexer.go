@@ -2,7 +2,9 @@ package lexer
 
 import (
 	"errors"
+	"fmt"
 	"staq/token"
+	"strings"
 )
 
 type Lexer struct {
@@ -155,6 +157,10 @@ func (l *Lexer) NextToken() token.Token {
 		tok = newToken(token.BITNOT, l.ch)
 	case '%':
 		tok = newToken(token.MOD, l.ch)
+	case '"':
+		tok.Type = token.STRING
+		tok.Literal = l.readString()
+		fmt.Printf("literal: %s\n", tok.Literal)
 	case ';':
 		tok = newToken(token.SEMICOLON, l.ch)
 	case ',':
@@ -234,6 +240,44 @@ func (l *Lexer) readNumber() (string, token.TokenType, error) {
 	}
 
 	return l.input[position:l.position], tokType, nil
+}
+
+// readString reads a string from the input string.
+// It returns the string without the surrounding quotes.
+// Supports escape sequences.
+func (l *Lexer) readString() string {
+	var out strings.Builder
+
+	for {
+		l.readChar()
+		if l.ch == '\\' {
+			l.readChar()
+			switch l.ch {
+			case 'n':
+				out.WriteRune('\n')
+			case 't':
+				out.WriteRune('\t')
+			case 'r':
+				out.WriteRune('\r')
+			case 'b':
+				out.WriteRune('\b')
+			case 'f':
+				out.WriteRune('\f')
+			case '"':
+				out.WriteRune('"')
+			case '\\':
+				out.WriteRune('\\')
+			default:
+				out.WriteRune(rune(l.ch))
+			}
+		} else if l.ch == '"' || l.ch == 0 {
+			break
+		} else {
+			out.WriteRune(rune(l.ch))
+		}
+	}
+
+	return out.String()
 }
 
 // peekChar returns the next character in the input string without advancing the
