@@ -1,3 +1,3 @@
-module github.com/fehernandez12/staq
+module staq
 
 go 1.20

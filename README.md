@@ -14,6 +14,8 @@ This is how to bind a value to a name in StaQ:
 let age = 1;
 let name = "StaQ";
 let result = 10 * (20 / 2);
+let someHex = 0xFF; // Numbers can also be written in hexadecimal notation
+let someOct = 0o77; // Or in octal notation
 ```
 
 Besides primitives such as numbers, booleans and strings, the StaQ interpreter also supports arrays and maps:
