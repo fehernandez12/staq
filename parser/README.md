@@ -1,5 +1,7 @@
 # The StaQ Parser
 
+This is where the magic happens. The parser is responsible for parsing the source code and building the AST for it. The AST is then used by the interpreter to execute the program.
+
 ## Introduction
 
 You've probably heard about parsers already. They are programs that take a string of characters as input and produce a tree-like structure as output. This tree is called an abstract syntax tree (AST) and it represents the syntactic structure of the input string.
@@ -19,6 +21,10 @@ Nevertheless, writing a parser from scratch is an immensely valuable learning ex
 ### The parsing strategy
 
 For the StaQ Programming language, the parsing strategy of choice is Recursive Descent Parsing. This is a top-down parsing strategy that consists of a set of recursive procedures, one for each non-terminal symbol of the grammar. The parser starts with the start symbol of the grammar and recursively expands it until it reaches the terminal symbols. It also works very similar to the most basic idea of a tree and, after all, the AST is a tree.
+
+We will also be evaluating expressions followign the [Top Down](https://journal.stuffwithstuff.com/2011/03/19/pratt-parsers-expression-parsing-made-easy/) [Operator Precedence](http://crockford.com/javascript/tdop/tdop.html), also called Pratt Parsing. This is a top-down parsing strategy that is based on the idea that every operator has a precedence and a left binding power. The precedence determines the order in which the operators are evaluated and the left binding power determines how tightly the operator binds to its left operand. This is a very powerful strategy that allows us to parse expressions without the need for a grammar.
+
+So, instead of associating parsing functions (like the `parseLetStatement` receiver function) with grammar rules, we associate them with tokens. This is a very powerful strategy that allows us to parse expressions without the need for a grammar.
 
 ### Statements
 
