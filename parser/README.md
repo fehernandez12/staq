@@ -87,7 +87,7 @@ add(add(1, 2), 3)
 
 Identifiers are also expressions.
 
-It's worth noting that functions in StaQ are first-class citizens, which means that function literals are also expressions. We can use a let statement to bind a function to a name. The function literal is the value that is bound to the name.
+It's worth noting that functions in StaQ are **first-class citizens**, which means that function literals are also expressions. We can use a let statement to bind a function to a name. The function literal is the value that is bound to the name.
 
 ```
 let add = fn(a, b) {
@@ -101,7 +101,7 @@ And we can also use function literals in place of identifiers:
 fn(x, y) { return x + y; }(1, 2)
 ```
 
-Instead of the ternary operator, StaQ uses the `if` expression:
+Instead of the ternary operator, StaQ uses the `if` expression, which is more readable:
 
 ```
 let result = if (x > y) { true } else { false };
