@@ -1,4 +1,4 @@
-![Build status](https://github.com/fehernandez12/staq/actions/workflows/go.yaml/badge.svg)
+![Build status](https://github.com/fehernandez12/staq/actions/workflows/go.yml/badge.svg)
 
 # The StaQ Programming Language
 
