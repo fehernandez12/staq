@@ -74,6 +74,7 @@ func TestReturnStatements(t *testing.T) {
 	return 10;
 	return false;
 	return "foobar";
+	return;
 	`
 
 	l := lexer.New(input)
@@ -82,8 +83,8 @@ func TestReturnStatements(t *testing.T) {
 	program := p.ParseProgram()
 	checkParserErrors(t, p)
 
-	if len(program.Statements) != 4 {
-		t.Fatalf("program.Statements does not contain 4 statements. got=%d",
+	if len(program.Statements) != 5 {
+		t.Fatalf("program.Statements does not contain 5 statements. got=%d",
 			len(program.Statements))
 	}
 
