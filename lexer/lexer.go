@@ -1,6 +1,7 @@
 package lexer
 
 import (
+	"errors"
 	"staq/token"
 )
 
@@ -37,17 +38,131 @@ func (l *Lexer) NextToken() token.Token {
 
 	switch l.ch {
 	case '=':
-		tok = newToken(token.ASSIGN, l.ch)
+		if l.peekChar() == '=' {
+			ch := l.ch
+			l.readChar()
+			tok = token.Token{Type: token.EQ, Literal: string(ch) + string(l.ch)}
+		} else {
+			tok = newToken(token.ASSIGN, l.ch)
+		}
+	case '+':
+		if l.peekChar() == '+' {
+			ch := l.ch
+			l.readChar()
+			tok = token.Token{Type: token.INC, Literal: string(ch) + string(l.ch)}
+		} else if l.peekChar() == '=' {
+			ch := l.ch
+			l.readChar()
+			tok = token.Token{Type: token.ADDASSIGN, Literal: string(ch) + string(l.ch)}
+		} else {
+			tok = newToken(token.PLUS, l.ch)
+		}
+	case '-':
+		if l.peekChar() == '-' {
+			ch := l.ch
+			l.readChar()
+			tok = token.Token{Type: token.DEC, Literal: string(ch) + string(l.ch)}
+		} else if l.peekChar() == '=' {
+			ch := l.ch
+			l.readChar()
+			tok = token.Token{Type: token.SUBASSIGN, Literal: string(ch) + string(l.ch)}
+		} else {
+			tok = newToken(token.MINUS, l.ch)
+		}
+	case '!':
+		if l.peekChar() == '=' {
+			ch := l.ch
+			l.readChar()
+			tok = token.Token{Type: token.NOT_EQ, Literal: string(ch) + string(l.ch)}
+		} else {
+			tok = newToken(token.BANG, l.ch)
+		}
+	case '/':
+		if l.peekChar() == '=' {
+			ch := l.ch
+			l.readChar()
+			tok = token.Token{Type: token.DIVASSIGN, Literal: string(ch) + string(l.ch)}
+		} else if l.peekChar() == '/' {
+			ch := l.ch
+			l.readChar()
+			tok = token.Token{Type: token.INTDIV, Literal: string(ch) + string(l.ch)}
+		} else {
+			tok = newToken(token.SLASH, l.ch)
+		}
+	case '*':
+		if l.peekChar() == '=' {
+			ch := l.ch
+			l.readChar()
+			tok = token.Token{Type: token.MULASSIGN, Literal: string(ch) + string(l.ch)}
+		} else if l.peekChar() == '*' {
+			ch := l.ch
+			l.readChar()
+			tok = token.Token{Type: token.EXP, Literal: string(ch) + string(l.ch)}
+		} else {
+			tok = newToken(token.ASTERISK, l.ch)
+		}
+	case '<':
+		if l.peekChar() == '=' {
+			ch := l.ch
+			l.readChar()
+			tok = token.Token{Type: token.LEQ, Literal: string(ch) + string(l.ch)}
+		} else if l.peekChar() == '<' {
+			ch := l.ch
+			l.readChar()
+			tok = token.Token{Type: token.SHL, Literal: string(ch) + string(l.ch)}
+		} else {
+			tok = newToken(token.LT, l.ch)
+		}
+	case '>':
+		if l.peekChar() == '=' {
+			ch := l.ch
+			l.readChar()
+			tok = token.Token{Type: token.GEQ, Literal: string(ch) + string(l.ch)}
+		} else if l.peekChar() == '>' {
+			ch := l.ch
+			l.readChar()
+			tok = token.Token{Type: token.SHR, Literal: string(ch) + string(l.ch)}
+		} else {
+			tok = newToken(token.GT, l.ch)
+		}
+	case '?':
+		if l.peekChar() == '?' {
+			ch := l.ch
+			l.readChar()
+			tok = token.Token{Type: token.NULLCOAL, Literal: string(ch) + string(l.ch)}
+		} else {
+			tok = newToken(token.ILLEGAL, l.ch)
+		}
+	case '&':
+		if l.peekChar() == '&' {
+			ch := l.ch
+			l.readChar()
+			tok = token.Token{Type: token.AND, Literal: string(ch) + string(l.ch)}
+		} else {
+			tok = newToken(token.BITAND, l.ch)
+		}
+	case '|':
+		if l.peekChar() == '|' {
+			ch := l.ch
+			l.readChar()
+			tok = token.Token{Type: token.OR, Literal: string(ch) + string(l.ch)}
+		} else {
+			tok = newToken(token.BITOR, l.ch)
+		}
+	case '^':
+		tok = newToken(token.BITXOR, l.ch)
+	case '~':
+		tok = newToken(token.BITNOT, l.ch)
+	case '%':
+		tok = newToken(token.MOD, l.ch)
 	case ';':
 		tok = newToken(token.SEMICOLON, l.ch)
+	case ',':
+		tok = newToken(token.COMMA, l.ch)
 	case '(':
 		tok = newToken(token.LPAREN, l.ch)
 	case ')':
 		tok = newToken(token.RPAREN, l.ch)
-	case ',':
-		tok = newToken(token.COMMA, l.ch)
-	case '+':
-		tok = newToken(token.PLUS, l.ch)
 	case '{':
 		tok = newToken(token.LBRACE, l.ch)
 	case '}':
@@ -62,8 +177,12 @@ func (l *Lexer) NextToken() token.Token {
 			tok.Type = token.LookupIdent(tok.Literal)
 			return tok
 		} else if isDigit(l.ch) {
-			tok.Type = token.NUMBER
-			tok.Literal = l.readNumber()
+			tokLiteral, tokType, err := l.readNumber()
+			if err != nil {
+				tok = newToken(token.ILLEGAL, l.ch)
+			}
+			tok.Literal = tokLiteral
+			tok.Type = tokType
 			return tok
 		} else {
 			tok = newToken(token.ILLEGAL, l.ch)
@@ -88,24 +207,42 @@ func (l *Lexer) readIdentifier() string {
 	return l.input[position:l.position]
 }
 
-// readNumber reads a number from the input string, including floats, hex, and
-// octal numbers.
-func (l *Lexer) readNumber() string {
+// readNumber reads a number from the input string, including floats.
+// Fails is the number is malformed (i.e. 3.1415.92),
+// in that case it returns an error.
+func (l *Lexer) readNumber() (string, token.TokenType, error) {
+	var tokType token.TokenType
 	position := l.position
-	isHex := false
+	dotCount := 0
+	tokType = token.INT
 
-	for isDigit(l.ch) || l.ch == '.' || l.ch == 'x' || l.ch == 'X' || l.ch == 'o' || l.ch == 'O' || (isHex && isHexDigit(l.ch)) {
-		if l.ch == 'x' || l.ch == 'X' {
-			isHex = true
+	for isDigit(l.ch) || l.ch == '.' {
+		if l.ch == '.' {
+			dotCount++
+			if dotCount > 1 {
+				tokType = token.ILLEGAL
+				// Gather the entire literal
+				for isDigit(l.ch) || l.ch == '.' {
+					l.readChar()
+				}
+				// Return the literal, the token type and an error
+				return l.input[position:l.position], tokType, errors.New("malformed number")
+			}
+			tokType = token.FLOAT
 		}
 		l.readChar()
 	}
 
-	return l.input[position:l.position]
+	return l.input[position:l.position], tokType, nil
 }
 
-func isHexDigit(ch byte) bool {
-	return isDigit(ch) || ('a' <= ch && ch <= 'f') || ('A' <= ch && ch <= 'F')
+// peekChar returns the next character in the input string without advancing the
+// lexer's position.
+func (l *Lexer) peekChar() byte {
+	if l.readPosition >= len(l.input) {
+		return 0
+	}
+	return l.input[l.readPosition]
 }
 
 func isDigit(ch byte) bool {
