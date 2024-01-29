@@ -112,3 +112,33 @@ Instead of the ternary operator, StaQ uses the `if` expression, which is more re
 ```
 let result = if (x > y) { true } else { false };
 ```
+
+## Pratt Parsing
+
+The algorithm behind this parser is fully described by [Vaughan Pratt](https://en.wikipedia.org/wiki/Vaughan_Pratt) in his paper [Top Down Operator Precedence](https://tdop.github.io/). It's a very interesting read and it's highly recommended for anyone interested in parsers. Still, there are some key differences between his and our implementation.
+
+First, Pratt doesn't use a Parser structure of sorts and doesn't pass methods defined on `*Parser`. He also doesn't use maps and, of course, he doesn't use Go (mainly because his paper predates the release of Go by 36 years). And then there are naming differences: What we call `prefixParseFns` are "nuds" (for "null denotations") for Pratt. `infixParseFns` are "leds" (for "left denotations").
+
+The alrogithm is basically the same, though.
+
+### So how does it work?
+
+Supposed we are parsing the following StaQ statement:
+
+`1 + 2 + 3;`
+
+The big challenge here is to nest the nodes in the AST correctly. What we want at the end is an AST that, when serialized as a string, looks like this:
+
+`((1 + 2) + 3)`
+
+The AST also needs to have two `*ast.InfixExpression` nodes. The `*ast.InfixExpression` higher in the tree should have the integer literal `3` as its `Right` child node and its `Left` child node needs to be the other `*ast.InfixExpression`. This second expression then needs to have the integer literals `1` and `2` as its `Left` and `Right` child nodes, respectively.
+
+And this is exactly what the StaQ parser outputs when it parses the given statement.
+
+But what about more complex precedence issues? In this example the precedence is the same for all the operators, so it's not a problem. In that case, shouldn't we use `LOWEST` as the default precedence and then some `HIGHEST` precedence for all operators?
+
+No, that would produce a wrong AST. Consider the following statement:
+
+`-1 + 2;`
+
+What we want the AST to represent is `(-1) + 2`, instead of `-(1 + 2)`. And this is exactly what it does.

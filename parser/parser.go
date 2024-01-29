@@ -11,13 +11,51 @@ import (
 const (
 	_ int = iota
 	LOWEST
+	ASSIGNMENT
+	NULLCOAL
+	OR
+	AND
+	BITOR
+	BITXOR
+	BITAND
 	EQUALS
-	LESSGREATER
-	SUM
-	PRODUCT
-	PREFIX
-	CALL
+	RELATIONAL
+	SHIFT
+	ADDITIVE
+	MULTIPLICATIVE
+	EXP
+	UNARY
+	PRIMARY
 )
+
+var precedences = map[token.TokenType]int{
+	token.ADDASSIGN: ASSIGNMENT,
+	token.SUBASSIGN: ASSIGNMENT,
+	token.MULASSIGN: ASSIGNMENT,
+	token.DIVASSIGN: ASSIGNMENT,
+	token.ASSIGN:    ASSIGNMENT,
+	token.NULLCOAL:  NULLCOAL,
+	token.OR:        OR,
+	token.AND:       AND,
+	token.BITOR:     BITOR,
+	token.BITXOR:    BITXOR,
+	token.BITAND:    BITAND,
+	token.EQ:        EQUALS,
+	token.NOT_EQ:    EQUALS,
+	token.GT:        RELATIONAL,
+	token.LT:        RELATIONAL,
+	token.GEQ:       RELATIONAL,
+	token.LEQ:       RELATIONAL,
+	token.SHL:       SHIFT,
+	token.SHR:       SHIFT,
+	token.PLUS:      ADDITIVE,
+	token.MINUS:     ADDITIVE,
+	token.ASTERISK:  MULTIPLICATIVE,
+	token.SLASH:     MULTIPLICATIVE,
+	token.MOD:       MULTIPLICATIVE,
+	token.INTDIV:    MULTIPLICATIVE,
+	token.EXP:       EXP,
+}
 
 type (
 	prefixParseFn func() ast.Expression
@@ -45,6 +83,32 @@ func New(l *lexer.Lexer) *Parser {
 	p.registerPrefix(token.BANG, p.parsePrefixExpression)
 	p.registerPrefix(token.MINUS, p.parsePrefixExpression)
 	p.registerPrefix(token.BITNOT, p.parsePrefixExpression)
+	p.infixParseFns = make(map[token.TokenType]infixParseFn)
+	p.registerInfix(token.ADDASSIGN, p.parseInfixExpression)
+	p.registerInfix(token.SUBASSIGN, p.parseInfixExpression)
+	p.registerInfix(token.MULASSIGN, p.parseInfixExpression)
+	p.registerInfix(token.DIVASSIGN, p.parseInfixExpression)
+	p.registerInfix(token.NULLCOAL, p.parseInfixExpression)
+	p.registerInfix(token.OR, p.parseInfixExpression)
+	p.registerInfix(token.AND, p.parseInfixExpression)
+	p.registerInfix(token.BITOR, p.parseInfixExpression)
+	p.registerInfix(token.BITXOR, p.parseInfixExpression)
+	p.registerInfix(token.BITAND, p.parseInfixExpression)
+	p.registerInfix(token.EQ, p.parseInfixExpression)
+	p.registerInfix(token.NOT_EQ, p.parseInfixExpression)
+	p.registerInfix(token.GT, p.parseInfixExpression)
+	p.registerInfix(token.LT, p.parseInfixExpression)
+	p.registerInfix(token.GEQ, p.parseInfixExpression)
+	p.registerInfix(token.LEQ, p.parseInfixExpression)
+	p.registerInfix(token.SHL, p.parseInfixExpression)
+	p.registerInfix(token.SHR, p.parseInfixExpression)
+	p.registerInfix(token.PLUS, p.parseInfixExpression)
+	p.registerInfix(token.MINUS, p.parseInfixExpression)
+	p.registerInfix(token.ASTERISK, p.parseInfixExpression)
+	p.registerInfix(token.SLASH, p.parseInfixExpression)
+	p.registerInfix(token.MOD, p.parseInfixExpression)
+	p.registerInfix(token.INTDIV, p.parseInfixExpression)
+	p.registerInfix(token.EXP, p.parseInfixExpression)
 	p.nextToken()
 	p.nextToken()
 	return p
@@ -152,6 +216,17 @@ func (p *Parser) parseExpression(precedence int) ast.Expression {
 	}
 	leftExp := prefix()
 
+	for !p.peekTokenIs(token.SEMICOLON) && precedence < p.peekPrecedence() {
+		infix := p.infixParseFns[p.peekToken.Type]
+		if infix == nil {
+			return leftExp
+		}
+
+		p.nextToken()
+
+		leftExp = infix(leftExp)
+	}
+
 	return leftExp
 }
 
@@ -198,8 +273,21 @@ func (p *Parser) parsePrefixExpression() ast.Expression {
 
 	p.nextToken()
 
-	expression.Right = p.parseExpression(PREFIX)
+	expression.Right = p.parseExpression(UNARY)
 
+	return expression
+}
+
+func (p *Parser) parseInfixExpression(left ast.Expression) ast.Expression {
+	expression := &ast.InfixExpression{
+		Token:    p.curToken,
+		Operator: p.curToken.Literal,
+		Left:     left,
+	}
+
+	precedence := p.curPrecedence()
+	p.nextToken()
+	expression.Right = p.parseExpression(precedence)
 	return expression
 }
 
@@ -219,6 +307,20 @@ func (p *Parser) expectPeek(t token.TokenType) bool {
 		p.peekError(t)
 		return false
 	}
+}
+
+func (p *Parser) peekPrecedence() int {
+	if p, ok := precedences[p.peekToken.Type]; ok {
+		return p
+	}
+	return LOWEST
+}
+
+func (p *Parser) curPrecedence() int {
+	if p, ok := precedences[p.curToken.Type]; ok {
+		return p
+	}
+	return LOWEST
 }
 
 func (p *Parser) registerPrefix(tokenType token.TokenType, fn prefixParseFn) {
