@@ -2,7 +2,6 @@ package lexer
 
 import (
 	"errors"
-	"fmt"
 	"staq/token"
 	"strings"
 )
@@ -160,7 +159,6 @@ func (l *Lexer) NextToken() token.Token {
 	case '"':
 		tok.Type = token.STRING
 		tok.Literal = l.readString()
-		fmt.Printf("literal: %s\n", tok.Literal)
 	case ';':
 		tok = newToken(token.SEMICOLON, l.ch)
 	case ',':
