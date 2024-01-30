@@ -1,5 +1,7 @@
 # The StaQ Programming Language
 
+![Build status](https://github.com/fehernandez12/staq/actions/workflows/go.yml/badge.svg?branch=main)
+
 StaQ is an interpreted programming language that aims to be simple, and easy to use. It has a C-like syntax, support for first-class and higher-order functions and general features. Its interpreter is built using the [Go Programming Language](https://golang.org/).
 
 ## Syntax
