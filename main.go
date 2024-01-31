@@ -7,13 +7,16 @@ import (
 	"staq/repl"
 )
 
+const VERSION = "0.0.1"
+const CODENAME = "Happiny"
+
 func main() {
 	user, err := user.Current()
 	if err != nil {
 		panic(err)
 	}
-	fmt.Print("The StaQ Programming Language")
-	fmt.Printf("Version 0.0.1\n")
+	fmt.Println("The StaQ Programming Language")
+	fmt.Printf("Version %s - %s\n", VERSION, CODENAME)
 	fmt.Printf("Welcome, %s!\n", user.Username)
 	repl.Start(os.Stdin, os.Stdout)
 }
