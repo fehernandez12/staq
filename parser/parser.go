@@ -84,6 +84,8 @@ func New(l *lexer.Lexer) *Parser {
 	p.registerPrefix(token.BANG, p.parsePrefixExpression)
 	p.registerPrefix(token.MINUS, p.parsePrefixExpression)
 	p.registerPrefix(token.BITNOT, p.parsePrefixExpression)
+	p.registerPrefix(token.INC, p.parsePrefixExpression)
+	p.registerPrefix(token.DEC, p.parsePrefixExpression)
 	p.registerPrefix(token.TRUE, p.parseBoolean)
 	p.registerPrefix(token.FALSE, p.parseBoolean)
 	p.registerPrefix(token.LPAREN, p.parseGroupedExpression)
@@ -152,6 +154,8 @@ func (p *Parser) parseStatement() ast.Statement {
 	switch p.curToken.Type {
 	case token.LET:
 		return p.parseLetStatement()
+	case token.CONST:
+		return p.parseConstStatement()
 	case token.RETURN:
 		return p.parseReturnStatement()
 	default:
@@ -163,6 +167,35 @@ func (p *Parser) parseLetStatement() *ast.LetStatement {
 	stmt := &ast.LetStatement{
 		Token: p.curToken,
 	}
+	if !p.expectPeek(token.IDENT) {
+		return nil
+	}
+
+	stmt.Name = &ast.Identifier{
+		Token: p.curToken,
+		Value: p.curToken.Literal,
+	}
+
+	if !p.expectPeek(token.ASSIGN) {
+		return nil
+	}
+
+	p.nextToken()
+
+	stmt.Value = p.parseExpression(LOWEST)
+
+	for !p.curTokenIs(token.SEMICOLON) {
+		p.nextToken()
+	}
+
+	return stmt
+}
+
+func (p *Parser) parseConstStatement() *ast.ConstStatement {
+	stmt := &ast.ConstStatement{
+		Token: p.curToken,
+	}
+
 	if !p.expectPeek(token.IDENT) {
 		return nil
 	}
@@ -286,6 +319,11 @@ func (p *Parser) parsePrefixExpression() ast.Expression {
 	}
 
 	p.nextToken()
+
+	if expression.Operator == token.INC || expression.Operator == token.DEC {
+		expression.Right = p.parseExpression(PRIMARY)
+		return expression
+	}
 
 	expression.Right = p.parseExpression(UNARY)
 

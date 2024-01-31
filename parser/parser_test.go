@@ -61,6 +61,60 @@ func testLetStatement(t *testing.T, s ast.Statement, name string) bool {
 	return true
 }
 
+func TestConstStatements(t *testing.T) {
+	tests := []struct {
+		input              string
+		expectedIdentifier string
+		expectedValue      interface{}
+	}{
+		{"const x = 5;", "x", 5},
+		{"const y = true;", "y", true},
+		{"const foobar = y;", "foobar", "y"},
+	}
+	for _, tt := range tests {
+		l := lexer.New(tt.input)
+		p := New(l)
+		program := p.ParseProgram()
+		checkParserErrors(t, p)
+		if len(program.Statements) != 1 {
+			t.Fatalf("program.Statements does not contain 1 statements. got=%d",
+				len(program.Statements))
+		}
+		stmt := program.Statements[0]
+		if !testConstStatement(t, stmt, tt.expectedIdentifier) {
+			return
+		}
+		val := stmt.(*ast.ConstStatement).Value
+		if !testLiteralExpression(t, val, tt.expectedValue) {
+			return
+		}
+	}
+}
+
+func testConstStatement(t *testing.T, s ast.Statement, name string) bool {
+	if s.TokenLiteral() != "const" {
+		t.Errorf("s.TokenLiteral not 'const'. got=%q", s.TokenLiteral())
+		return false
+	}
+	constStmt, ok := s.(*ast.ConstStatement)
+	if !ok {
+		t.Errorf("s not *ast.ConstStatement. got=%T", s)
+		return false
+	}
+
+	if constStmt.Name.Value != name {
+		t.Errorf("constStmt.Name.Value not '%s'. got=%s", name, constStmt.Name.Value)
+		return false
+	}
+
+	if constStmt.Name.TokenLiteral() != name {
+		t.Errorf("s.Name not '%s'. got=%s", name, constStmt.Name)
+		return false
+	}
+
+	return true
+}
+
 func TestReturnStatements(t *testing.T) {
 	tests := []struct {
 		input         string
