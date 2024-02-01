@@ -7,7 +7,8 @@ import (
 )
 
 func TestNextToken(t *testing.T) {
-	input := `let five = 5;`
+	input := `let five = 5;
+	"foobar"`
 
 	tests := []struct {
 		expectedType    token.TokenType
@@ -18,6 +19,7 @@ func TestNextToken(t *testing.T) {
 		{token.ASSIGN, "="},
 		{token.INT, "5"},
 		{token.SEMICOLON, ";"},
+		{token.STRING, "foobar"},
 		{token.EOF, ""},
 	}
 
@@ -314,7 +316,7 @@ func TestString(t *testing.T) {
 	}
 }
 
-func TestEscapedtring(t *testing.T) {
+func TestEscapedString(t *testing.T) {
 	input := `"Hello World from the \"StaG\" programming language!\nEnjoy your day!\t";`
 
 	l := New(input)

@@ -4,5 +4,5 @@ type String struct {
 	Value string
 }
 
-func (s *String) ObjectType() ObjectType { return STRING }
-func (s *String) Inspect() string        { return s.Value }
+func (s *String) Type() ObjectType { return STRING }
+func (s *String) Inspect() string  { return s.Value }

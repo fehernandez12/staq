@@ -1,10 +1,12 @@
 package evaluator
 
 import (
+	"bytes"
 	"fmt"
 	"math"
 	"staq/ast"
 	"staq/object"
+	"strings"
 )
 
 var (
@@ -12,6 +14,22 @@ var (
 	TRUE  = &object.Boolean{Value: true}
 	FALSE = &object.Boolean{Value: false}
 )
+
+var builtins = map[string]*object.Builtin{
+	"len": &object.Builtin{
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) != 1 {
+				return newError("wrong number of arguments. got=%d, want=1", len(args))
+			}
+			switch arg := args[0].(type) {
+			case *object.String:
+				return &object.Integer{Value: int64(len(arg.Value))}
+			default:
+				return newError("argument to `len` not supported, got %s", args[0].Type())
+			}
+		},
+	},
+}
 
 func Eval(node ast.Node, env *object.Environment) object.Object {
 	switch node := node.(type) {
@@ -67,6 +85,8 @@ func Eval(node ast.Node, env *object.Environment) object.Object {
 		return &object.Integer{Value: node.Value}
 	case *ast.FloatLiteral:
 		return &object.Float{Value: node.Value}
+	case *ast.StringLiteral:
+		return evalString(node, env)
 	case *ast.Boolean:
 		return nativeBoolToBooleanObject(node.Value)
 	case *ast.InfixExpression:
@@ -156,6 +176,8 @@ func evalInfixExpression(operator string, left, right object.Object) object.Obje
 		return evalFloatInfixExpression(operator, &object.Float{Value: float64(left.(*object.Integer).Value)}, right)
 	case left.Type() == object.FLOAT && right.Type() == object.INTEGER:
 		return evalFloatInfixExpression(operator, left, &object.Float{Value: float64(right.(*object.Integer).Value)})
+	case left.Type() == object.STRING && right.Type() == object.STRING:
+		return evalStringInfixExpression(operator, left, right)
 	case operator == "==":
 		return nativeBoolToBooleanObject(left == right)
 	case operator == "!=":
@@ -166,6 +188,21 @@ func evalInfixExpression(operator string, left, right object.Object) object.Obje
 		return nativeBoolToBooleanObject(isTruthy(left) || isTruthy(right))
 	case left.Type() != right.Type():
 		return newError("type mismatch: %s %s %s", left.Type(), operator, right.Type())
+	default:
+		return newError("unknown operator: %s %s %s", left.Type(), operator, right.Type())
+	}
+}
+
+func evalStringInfixExpression(operator string, left, right object.Object) object.Object {
+	leftVal := left.(*object.String).Value
+	rightVal := right.(*object.String).Value
+	switch operator {
+	case "+":
+		return &object.String{Value: leftVal + rightVal}
+	case "==":
+		return nativeBoolToBooleanObject(strings.Compare(leftVal, rightVal) == 0)
+	case "!=":
+		return nativeBoolToBooleanObject(strings.Compare(leftVal, rightVal) != 0)
 	default:
 		return newError("unknown operator: %s %s %s", left.Type(), operator, right.Type())
 	}
@@ -241,11 +278,45 @@ func evalDecrementPrefixOperatorExpression(right object.Object) object.Object {
 }
 
 func evalIdentifier(node *ast.Identifier, env *object.Environment) object.Object {
-	val, ok := env.Get(node.Value)
-	if !ok {
-		return newError("identifier not found: %s", node.Value)
+	if val, ok := env.Get(node.Value); ok {
+		return val
 	}
-	return val
+	if builtin, ok := builtins[node.Value]; ok {
+		return builtin
+	}
+	return newError("identifier not found: %s", node.Value)
+}
+
+func evalString(node *ast.StringLiteral, env *object.Environment) object.Object {
+	// Interpolate the values between brackets ({}) to their corresponding values from env
+	// Example: "Hello, {name}!" -> "Hello, World!"
+	// If the value is not found in env, create an error
+	// Example: "Hello, {name}!" -> "Hello, ERROR: identifier not found: name!"
+	var out bytes.Buffer
+	var inBrackets bool
+	var identifier string
+	for _, c := range node.Value {
+		if c == '{' {
+			inBrackets = true
+			continue
+		}
+		if c == '}' {
+			inBrackets = false
+			val, ok := env.Get(identifier)
+			if !ok {
+				return newError("identifier not found: %s", identifier)
+			}
+			out.WriteString(val.Inspect())
+			identifier = ""
+			continue
+		}
+		if inBrackets {
+			identifier += string(c)
+			continue
+		}
+		out.WriteString(string(c))
+	}
+	return &object.String{Value: out.String()}
 }
 
 func evalIntegerInfixExpression(operator string, left, right object.Object) object.Object {
@@ -355,13 +426,16 @@ func evalExpressions(exps []ast.Expression, env *object.Environment) []object.Ob
 }
 
 func applyFunction(fn object.Object, args []object.Object) object.Object {
-	function, ok := fn.(*object.Function)
-	if !ok {
+	switch fn := fn.(type) {
+	case *object.Function:
+		extendedEnv := extendFunctionEnv(fn, args)
+		evaluated := Eval(fn.Body, extendedEnv)
+		return unwrapReturnValue(evaluated)
+	case *object.Builtin:
+		return fn.Fn(args...)
+	default:
 		return newError("not a function: %s", fn.Type())
 	}
-	extendedEnv := extendFunctionEnv(function, args)
-	evaluated := Eval(function.Body, extendedEnv)
-	return unwrapReturnValue(evaluated)
 }
 
 func extendFunctionEnv(fn *object.Function, args []object.Object) *object.Environment {
