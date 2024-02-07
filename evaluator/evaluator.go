@@ -15,20 +15,207 @@ var (
 	FALSE = &object.Boolean{Value: false}
 )
 
-var builtins = map[string]*object.Builtin{
-	"len": &object.Builtin{
-		Fn: func(args ...object.Object) object.Object {
-			if len(args) != 1 {
-				return newError("wrong number of arguments. got=%d, want=1", len(args))
-			}
-			switch arg := args[0].(type) {
-			case *object.String:
-				return &object.Integer{Value: int64(len(arg.Value))}
-			default:
-				return newError("argument to `len` not supported, got %s", args[0].Type())
-			}
+func GetBuiltins() map[string]*object.Builtin {
+	var builtins = map[string]*object.Builtin{
+		"len": {
+			Fn: func(args ...object.Object) object.Object {
+				if len(args) != 1 {
+					return newError("wrong number of arguments. got=%d, want=1", len(args))
+				}
+				switch arg := args[0].(type) {
+				case *object.Array:
+					return &object.Integer{Value: int64(len(arg.Elements))}
+				case *object.String:
+					return &object.Integer{Value: int64(len(arg.Value))}
+				default:
+					return newError("argument to `len` not supported, got %s", args[0].Type())
+				}
+			},
 		},
-	},
+		"first": {
+			Fn: func(args ...object.Object) object.Object {
+				if len(args) != 1 {
+					return newError("wrong number of arguments. got=%d, want=1", len(args))
+				}
+				if args[0].Type() != object.ARRAY_OBJ {
+					return newError("argument to `first` must be ARRAY, got %s", args[0].Type())
+				}
+				arr := args[0].(*object.Array)
+				if len(arr.Elements) > 0 {
+					return arr.Elements[0]
+				}
+				return NULL
+			},
+		},
+		"last": {
+			Fn: func(args ...object.Object) object.Object {
+				if len(args) != 1 {
+					return newError("wrong number of arguments. got=%d, want=1", len(args))
+				}
+				if args[0].Type() != object.ARRAY_OBJ {
+					return newError("argument to `last` must be ARRAY, got %s", args[0].Type())
+				}
+				arr := args[0].(*object.Array)
+				length := len(arr.Elements)
+				if length > 0 {
+					return arr.Elements[length-1]
+				}
+				return NULL
+			},
+		},
+		"rest": {
+			Fn: func(args ...object.Object) object.Object {
+				if len(args) != 1 {
+					return newError("wrong number of arguments. got=%d, want=1", len(args))
+				}
+				if args[0].Type() != object.ARRAY_OBJ {
+					return newError("argument to `rest` must be ARRAY, got %s", args[0].Type())
+				}
+				arr := args[0].(*object.Array)
+				length := len(arr.Elements)
+				if length > 0 {
+					newElements := make([]object.Object, length-1, length-1)
+					copy(newElements, arr.Elements[1:length])
+					return &object.Array{Elements: newElements}
+				}
+				return NULL
+			},
+		},
+		"push": {
+			Fn: func(args ...object.Object) object.Object {
+				if len(args) != 2 {
+					return newError("wrong number of arguments. got=%d, want=2", len(args))
+				}
+				if args[0].Type() != object.ARRAY_OBJ {
+					return newError("argument to `push` must be ARRAY, got %s", args[0].Type())
+				}
+				arr := args[0].(*object.Array)
+				length := len(arr.Elements)
+				newElements := make([]object.Object, length+1, length+1)
+				copy(newElements, arr.Elements)
+				newElements[length] = args[1]
+				return &object.Array{Elements: newElements}
+			},
+		},
+		"pop": {
+			Fn: func(args ...object.Object) object.Object {
+				if len(args) != 1 {
+					return newError("wrong number of arguments. got=%d, want=1", len(args))
+				}
+				if args[0].Type() != object.ARRAY_OBJ {
+					return newError("argument to `pop` must be ARRAY, got %s", args[0].Type())
+				}
+				arr := args[0].(*object.Array)
+				length := len(arr.Elements)
+				if length > 0 {
+					newElements := make([]object.Object, length-1, length-1)
+					copy(newElements, arr.Elements[0:length-1])
+					return &object.Array{Elements: newElements}
+				}
+				return NULL
+			},
+		},
+		"forEach": {
+			Fn: func(args ...object.Object) object.Object {
+				if len(args) != 2 {
+					return newError("wrong number of arguments. got=%d, want=2", len(args))
+				}
+				if args[0].Type() != object.ARRAY_OBJ {
+					return newError("argument to `forEach` must be ARRAY, got %s", args[0].Type())
+				}
+				if args[1].Type() != object.FUNCTION_OBJ {
+					return newError("argument to `forEach` must be FUNCTION, got %s", args[1].Type())
+				}
+				arr := args[0].(*object.Array)
+				fn := args[1].(*object.Function)
+				for _, el := range arr.Elements {
+					evaluated := Eval(fn.Body, extendFunctionEnv(fn, []object.Object{el}))
+					if isError(evaluated) {
+						return evaluated
+					}
+				}
+				return NULL
+			},
+		},
+		"map": {
+			Fn: func(args ...object.Object) object.Object {
+				if len(args) != 2 {
+					return newError("wrong number of arguments. got=%d, want=2", len(args))
+				}
+				if args[0].Type() != object.ARRAY_OBJ {
+					return newError("argument to `map` must be ARRAY, got %s", args[0].Type())
+				}
+				if args[1].Type() != object.FUNCTION_OBJ {
+					return newError("argument to `map` must be FUNCTION, got %s", args[1].Type())
+				}
+				arr := args[0].(*object.Array)
+				fn := args[1].(*object.Function)
+				var elements []object.Object
+				for _, el := range arr.Elements {
+					evaluated := Eval(fn.Body, extendFunctionEnv(fn, []object.Object{el}))
+					if isError(evaluated) {
+						return evaluated
+					}
+					elements = append(elements, evaluated)
+				}
+				return &object.Array{Elements: elements}
+			},
+		},
+		"filter": {
+			Fn: func(args ...object.Object) object.Object {
+				if len(args) != 2 {
+					return newError("wrong number of arguments. got=%d, want=2", len(args))
+				}
+				if args[0].Type() != object.ARRAY_OBJ {
+					return newError("argument to `filter` must be ARRAY, got %s", args[0].Type())
+				}
+				if args[1].Type() != object.FUNCTION_OBJ {
+					return newError("argument to `filter` must be FUNCTION, got %s", args[1].Type())
+				}
+				arr := args[0].(*object.Array)
+				fn := args[1].(*object.Function)
+				var elements []object.Object
+				for _, el := range arr.Elements {
+					evaluated := Eval(fn.Body, extendFunctionEnv(fn, []object.Object{el}))
+					if isError(evaluated) {
+						return evaluated
+					}
+					if isTruthy(evaluated) {
+						elements = append(elements, el)
+					}
+				}
+				return &object.Array{Elements: elements}
+			},
+		},
+		"reduce": {
+			Fn: func(args ...object.Object) object.Object {
+				if len(args) != 3 {
+					return newError("wrong number of arguments. got=%d, want=3", len(args))
+				}
+				if args[0].Type() != object.ARRAY_OBJ {
+					return newError("argument to `reduce` must be ARRAY, got %s", args[0].Type())
+				}
+				if args[1].Type() != object.FUNCTION_OBJ {
+					return newError("argument to `reduce` must be FUNCTION, got %s", args[1].Type())
+				}
+				if args[2].Type() != object.INTEGER && args[2].Type() != object.FLOAT {
+					return newError("argument to `reduce` must be INTEGER or FLOAT, got %s", args[2].Type())
+				}
+				arr := args[0].(*object.Array)
+				fn := args[1].(*object.Function)
+				acc := args[2]
+				for _, el := range arr.Elements {
+					evaluated := Eval(fn.Body, extendFunctionEnv(fn, []object.Object{acc, el}))
+					if isError(evaluated) {
+						return evaluated
+					}
+					acc = evaluated
+				}
+				return acc
+			},
+		},
+	}
+	return builtins
 }
 
 func Eval(node ast.Node, env *object.Environment) object.Object {
@@ -87,6 +274,22 @@ func Eval(node ast.Node, env *object.Environment) object.Object {
 		return &object.Float{Value: node.Value}
 	case *ast.StringLiteral:
 		return evalString(node, env)
+	case *ast.ArrayLiteral:
+		elements := evalExpressions(node.Elements, env)
+		if len(elements) == 1 && isError(elements[0]) {
+			return elements[0]
+		}
+		return &object.Array{Elements: elements}
+	case *ast.IndexExpression:
+		left := Eval(node.Left, env)
+		if isError(left) {
+			return left
+		}
+		index := Eval(node.Index, env)
+		if isError(index) {
+			return index
+		}
+		return evalIndexExpression(left, index)
 	case *ast.Boolean:
 		return nativeBoolToBooleanObject(node.Value)
 	case *ast.InfixExpression:
@@ -281,6 +484,7 @@ func evalIdentifier(node *ast.Identifier, env *object.Environment) object.Object
 	if val, ok := env.Get(node.Value); ok {
 		return val
 	}
+	builtins := GetBuiltins()
 	if builtin, ok := builtins[node.Value]; ok {
 		return builtin
 	}
@@ -410,6 +614,31 @@ func evalFloatInfixExpression(operator string, left, right object.Object) object
 	default:
 		return newError("unknown operator: %s %s %s", left.Type(), operator, right.Type())
 	}
+}
+
+func evalIndexExpression(left, index object.Object) object.Object {
+	switch {
+	case left.Type() == object.ARRAY_OBJ && index.Type() == object.INTEGER:
+		return evalArrayIndexExpression(left, index)
+	default:
+		return newError("index operator not supported: %s", left.Type())
+	}
+}
+
+// evalArrayIndexExpression returns the element at the given index of the array
+// If the index is out of bounds, it returns NULL
+// If the index is negative, it counts from the end of the array, starting from -1.
+func evalArrayIndexExpression(array, index object.Object) object.Object {
+	arrayObject := array.(*object.Array)
+	idx := index.(*object.Integer).Value
+	max := int64(len(arrayObject.Elements) - 1)
+	if idx < 0 {
+		idx = max + 1 + idx
+	}
+	if idx < 0 || idx > max {
+		return NULL
+	}
+	return arrayObject.Elements[idx]
 }
 
 func evalExpressions(exps []ast.Expression, env *object.Environment) []object.Object {

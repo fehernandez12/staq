@@ -8,7 +8,8 @@ import (
 
 func TestNextToken(t *testing.T) {
 	input := `let five = 5;
-	"foobar"`
+	"foobar";
+	[1, 2, 3];`
 
 	tests := []struct {
 		expectedType    token.TokenType
@@ -20,6 +21,15 @@ func TestNextToken(t *testing.T) {
 		{token.INT, "5"},
 		{token.SEMICOLON, ";"},
 		{token.STRING, "foobar"},
+		{token.SEMICOLON, ";"},
+		{token.LBRACKET, "["},
+		{token.INT, "1"},
+		{token.COMMA, ","},
+		{token.INT, "2"},
+		{token.COMMA, ","},
+		{token.INT, "3"},
+		{token.RBRACKET, "]"},
+		{token.SEMICOLON, ";"},
 		{token.EOF, ""},
 	}
 
